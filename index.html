@@ -1,0 +1,73 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111"><link rel="manifest" href="manifest.json"><title>Jean Performance V3</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0b0d10;color:#f4f4f5}button,input,select{font:inherit}button{cursor:pointer}.app{max-width:900px;margin:auto;padding:18px 14px 90px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}.brand{font-weight:800;font-size:22px}.muted{color:#9ca3af}.tabs{display:flex;gap:7px;overflow:auto;margin-bottom:16px}.tabs button{background:#171a20;color:#cbd5e1;border:1px solid #272b33;border-radius:12px;padding:9px 12px;white-space:nowrap}.tabs button.active{background:#f4f4f5;color:#111}.card{background:#12151a;border:1px solid #242832;border-radius:16px;padding:15px;margin:12px 0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{background:#171a20;border-radius:12px;padding:12px}.stat b{display:block;font-size:21px;margin-top:4px}.daybar{display:flex;gap:8px;overflow:auto;margin:10px 0}.daybar button{border:1px solid #303640;background:#15181d;color:#ddd;border-radius:10px;padding:8px 10px}.daybar button.active{background:#fff;color:#111}.exercise{border:1px solid #292e38;border-radius:14px;padding:13px;margin:10px 0}.exercise h3{margin:0 0 4px;font-size:16px}.meta{font-size:12px;color:#9ca3af}.sets{margin-top:10px}.setrow{display:grid;grid-template-columns:34px 1fr 1fr 1fr 34px;gap:6px;align-items:center;margin:6px 0}.setrow input{width:100%;background:#0c0f13;border:1px solid #303640;color:#fff;border-radius:8px;padding:8px}.check{width:28px;height:28px}.setnum{color:#9ca3af;text-align:center}.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.small{padding:7px 9px;border-radius:9px;border:1px solid #303640;background:#191d24;color:#e5e7eb}.primary{background:#fff;color:#111;border-color:#fff}.volume{font-weight:700;margin-top:8px}.chart{width:100%;height:210px;background:#0d1014;border-radius:10px;border:1px solid #252a32;margin-top:10px}.sectiontitle{margin:20px 0 8px}.food,.water,.recovery{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid #252a32}.waterbar{height:12px;background:#20252d;border-radius:99px;overflow:hidden}.waterfill{height:100%;background:#eee;width:0}.footer{color:#777;font-size:11px;text-align:center;margin-top:25px}@media(max-width:600px){.grid{grid-template-columns:1fr 1fr}.setrow{grid-template-columns:24px 1fr 1fr 1fr 30px;font-size:12px}}
+</style></head><body><main class="app"><div class="top"><div><div class="brand">Jean Performance</div><div class="muted">V3 • treino, alimentação, água e evolução</div></div><button class="small primary" onclick="exportData()">📤 Exportar evolução</button></div><div class="tabs" id="tabs"></div><section id="view"></section><div class="footer">Dados salvos localmente neste aparelho.</div></main>
+<script>
+const PLAN={
+"Segunda — Superior A":[["Supino reto",3,"6–10"],["Supino inclinado halteres",3,"8–12"],["Puxada alta",3,"8–12"],["Remada baixa",3,"8–12"],["Desenvolvimento",2,"8–12"],["Elevação lateral",3,"10–15"],["Tríceps corda",2,"10–15"],["Tríceps testa",2,"8–12"],["Rosca direta",2,"8–12"],["Rosca alternada",2,"10–12"],["Pallof press",3,"10–12/lado"]],
+"Quarta — Pernas":[["Salto vertical (CMJ)",3,"3"],["Agachamento livre ou Hack Squat",3,"6–8"],["Leg press",3,"8–12"],["Mesa flexora",3,"8–12"],["Flexora unilateral",2,"10–12/lado"],["Cadeira extensora",2,"10–15"],["Panturrilha em pé",3,"10–15"],["Panturrilha sentado",2,"12–15"],["Copenhagen plank",2,"20–30 s/lado"],["Step-up ou Bulgarian split squat",2,"8–10/lado"],["Drop landing + estabilização",2,"4–5"]],
+"Sexta — Superior B":[["Puxada na frente",3,"8–12"],["Remada unilateral",3,"8–12"],["Chest press/máquina",3,"8–12"],["Crucifixo máquina ou crossover",2,"10–15"],["Desenvolvimento",2,"8–12"],["Elevação lateral",3,"12–15"],["Rosca alternada",2,"10–12"],["Rosca martelo",2,"10–12"],["Tríceps corda",2,"10–15"],["Tríceps francês",2,"10–12"],["Prancha lateral",2,"30–45 s/lado"]]
+};
+const DAYS=Object.keys(PLAN);const TABS=["Hoje","Treino","Comida","Água","Recuperação","Evolução"];let tab="Hoje",day=DAYS[0];
+let db=JSON.parse(localStorage.getItem("jp_v3")||'{}');db.sessions=db.sessions||{};db.water=db.water||{};db.food=db.food||{};db.recovery=db.recovery||{};
+function save(){localStorage.setItem("jp_v3",JSON.stringify(db))}function key(){return new Date().toISOString().slice(0,10)}
+function render(){document.getElementById('tabs').innerHTML=TABS.map(x=>`<button class="${x===tab?'active':''}" onclick="tab='${x}';render()">${x}</button>`).join('');let v=document.getElementById('view');if(tab==='Hoje')v.innerHTML=home();if(tab==='Treino')v.innerHTML=training();if(tab==='Comida')v.innerHTML=food();if(tab==='Água')v.innerHTML=water();if(tab==='Recuperação')v.innerHTML=recovery();if(tab==='Evolução')v.innerHTML=evolution();}
+function home(){let d=db.sessions[key()]||{};let done=Object.values(d).reduce((a,e)=>a+(e.done||0),0);let total=DAYS.reduce((a,k)=>a+PLAN[k].reduce((x,e)=>x+e[1],0),0);let w=db.water[key()]||0;return `<div class="card"><h2>Hoje</h2><p class="muted">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})}</p><div class="grid"><div class="stat">Séries concluídas<b>${done}</b></div><div class="stat">Água<b>${w} ml</b></div><div class="stat">Treino<b>${done?'Em andamento':'Ainda não iniciado'}</b></div><div class="stat">Peso<b>82 kg</b></div></div></div><div class="card"><h3>Semana</h3>${DAYS.map(k=>`<div class="food"><span>${k}</span><span class="muted">${PLAN[k].length} exercícios</span></div>`).join('')}<div class="food"><span>Terça/Quinta</span><span class="muted">Futevôlei</span></div><div class="food"><span>Sábado</span><span class="muted">Corrida + Core</span></div><div class="food"><span>Domingo</span><span class="muted">Recuperação</span></div></div>`}
+function training(){return `<div class="daybar">${DAYS.map(k=>`<button class="${day===k?'active':''}" onclick="day='${k}';render()">${k.split(' — ')[0]}</button>`).join('')}</div><div class="card"><h2>${day}</h2><p class="muted">Registre carga, repetições, RIR e conclusão de cada série. O volume é calculado automaticamente.</p>${PLAN[day].map((e,i)=>exercise(e,i)).join('')}<button class="small primary" onclick="finishWorkout()">Finalizar sessão</button></div>`}
+function exercise(e,i){let [name,n,reps]=e;let k=key(),s=((db.sessions[k]||{})[name])||{sets:Array.from({length:n},()=>({load:'',reps:'',rir:'',ok:false}))};while(s.sets.length<n)s.sets.push({load:'',reps:'',rir:'',ok:false});let vol=s.sets.reduce((a,x)=>a+(+x.load||0)*(+x.reps||0),0);let last=lastData(name);let best=bestData(name);return `<div class="exercise"><h3>${name}</h3><div class="meta">${n} séries • alvo ${reps}</div><div class="sets"><div class="setrow meta"><span>#</span><span>KG</span><span>REPS</span><span>RIR</span><span>✓</span></div>${s.sets.map((x,j)=>`<div class="setrow"><span class="setnum">${j+1}</span><input type="number" step="0.5" value="${x.load}" placeholder="kg" onchange="upd('${name}',${j},'load',this.value)"><input type="number" value="${x.reps}" placeholder="reps" onchange="upd('${name}',${j},'reps',this.value)"><input type="number" min="0" max="5" value="${x.rir}" placeholder="RIR" onchange="upd('${name}',${j},'rir',this.value)"><input class="check" type="checkbox" ${x.ok?'checked':''} onchange="upd('${name}',${j},'ok',this.checked)"></div>`).join('')}</div><div class="volume">Volume: ${vol.toFixed(1)} kg</div><div class="meta">Última: ${last?last.load+' kg × '+last.reps+' reps • RIR '+last.rir:'sem registro'}${best?' • Melhor volume: '+best.toFixed(1)+' kg':''}</div><div class="actions"><button class="small" onclick="yt('${name}')">▶ Vídeo no YouTube</button><button class="small" onclick="showChart('${name}')">📈 Histórico</button></div></div>`}
+function upd(name,j,field,val){let k=key();db.sessions[k]=db.sessions[k]||{};db.sessions[k][name]=db.sessions[k][name]||{sets:[]};let s=db.sessions[k][name];while(s.sets.length<PLAN[day].find(e=>e[0]===name)[1])s.sets.push({load:'',reps:'',rir:'',ok:false});s.sets[j][field]=field==='ok'?val:Number(val)||'';s.done=s.sets.filter(x=>x.ok).length;save();render()}
+function lastData(name){let dates=Object.keys(db.sessions).sort().reverse();for(let d of dates){let s=db.sessions[d][name];if(s&&s.sets){let z=[...s.sets].reverse().find(x=>x.load!==''||x.reps!=='');if(z)return z}}return null}
+function bestData(name){let best=0;for(let d in db.sessions){let s=db.sessions[d][name];if(s?.sets)best=Math.max(best,s.sets.reduce((a,x)=>a+(+x.load||0)*(+x.reps||0),0))}return best||null}
+function yt(n){location.href='https://www.youtube.com/results?search_query='+encodeURIComponent(n+' execução exercício')}
+function showChart(name){tab='Evolução';setTimeout(()=>{render();document.getElementById('exerciseSelect').value=name;draw(name)},0)}
+function finishWorkout(){alert('Sessão salva. Continue registrando as séries; os dados ficam neste aparelho.');save()}
+function food(){let d=db.food[key()]||{};let items=['Café da manhã','Almoço','Pré-treino','Pós-treino / jantar','Lanche'];return `<div class="card"><h2>Comida</h2><p class="muted">Marque as refeições feitas hoje.</p>${items.map(x=>`<div class="food"><span>${x}</span><input type="checkbox" ${d[x]?'checked':''} onchange="foodSet('${x}',this.checked)"></div>`).join('')}<p class="muted">Referência do protocolo: proteína diária 130–165 g.</p></div>`}
+function foodSet(x,v){db.food[key()]=db.food[key()]||{};db.food[key()][x]=v;save()}
+function water(){let v=db.water[key()]||0;return `<div class="card"><h2>Água</h2><div class="stat"><span class="muted">Registrado hoje</span><b>${v} ml</b></div><div class="waterbar"><div class="waterfill" style="width:${Math.min(100,v/30)}%"></div></div><div class="actions">${[250,500,750,1000].map(x=>`<button class="small" onclick="addWater(${x})">+${x} ml</button>`).join('')}<button class="small" onclick="setWater(0)">Zerar</button></div></div>`}
+function addWater(x){setWater((db.water[key()]||0)+x)}function setWater(x){db.water[key()]=x;save();render()}
+function recovery(){let d=db.recovery[key()]||{};return `<div class="card"><h2>Recuperação</h2>${[['Sono','sleep'],['Energia','energy'],['Dor','pain'],['Hidratação','hydration']].map(([a,b])=>`<div class="recovery"><span>${a}</span><select onchange="rec('${b}',this.value)"><option value="">—</option>${[1,2,3,4,5].map(x=>`<option ${d[b]==x?'selected':''}>${x}</option>`).join('')}</select></div>`).join('')}</div>`}
+function rec(k,v){db.recovery[key()]=db.recovery[key()]||{};db.recovery[key()][k]=v;save()}
+function evolution(){let names=[...new Set(Object.values(PLAN).flat().map(x=>x[0]))];return `<div class="card"><h2>Evolução</h2><select id="exerciseSelect" onchange="draw(this.value)">${names.map(n=>`<option>${n}</option>`).join('')}</select><canvas id="chart" class="chart" width="800" height="210"></canvas><p class="muted">Gráfico de volume por sessão (kg × reps).</p></div>`}
+function draw(name){let c=document.getElementById('chart');if(!c)return;let ctx=c.getContext('2d'),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);let vals=Object.keys(db.sessions).sort().map(d=>({d,v:(db.sessions[d][name]?.sets||[]).reduce((a,x)=>a+(+x.load||0)*(+x.reps||0),0)})).filter(x=>x.v>0).slice(-10);ctx.strokeStyle='#777';ctx.beginPath();ctx.moveTo(35,10);ctx.lineTo(35,h-30);ctx.lineTo(w-10,h-30);ctx.stroke();if(!vals.length){ctx.fillStyle='#aaa';ctx.fillText('Sem dados ainda',50,80);return}let max=Math.max(...vals.map(x=>x.v),1),step=(w-55)/Math.max(vals.length-1,1);ctx.strokeStyle='#fff';ctx.beginPath();vals.forEach((x,i)=>{let px=35+i*step,py=h-30-(x.v/max)*(h-55);i?ctx.lineTo(px,py):ctx.moveTo(px,py);ctx.fillStyle='#fff';ctx.fillText(Math.round(x.v),px-10,py-8)});ctx.stroke()}
+function exportData(){
+  save();
+  const sessions=db.sessions||{};
+  const sessionDates=Object.keys(sessions).sort();
+  let totalSets=0,totalVolume=0,completedSets=0;
+  const exerciseSummary={};
+  for(const date of sessionDates){
+    for(const [name,s] of Object.entries(sessions[date]||{})){
+      if(!s||!Array.isArray(s.sets)) continue;
+      let vol=0;
+      for(const x of s.sets){
+        const load=Number(x.load)||0, reps=Number(x.reps)||0;
+        if(x.load!==''||x.reps!=='') totalSets++;
+        if(x.ok) completedSets++;
+        vol += load*reps;
+      }
+      totalVolume += vol;
+      exerciseSummary[name]=exerciseSummary[name]||{sessions:0,totalVolume:0,bestSessionVolume:0,last:null};
+      exerciseSummary[name].sessions++;
+      exerciseSummary[name].totalVolume+=vol;
+      exerciseSummary[name].bestSessionVolume=Math.max(exerciseSummary[name].bestSessionVolume,vol);
+      exerciseSummary[name].last={date,sets:s.sets};
+    }
+  }
+  const payload={
+    exportFormat:'Jean Performance Evolution',
+    exportVersion:1,
+    appVersion:'V3',
+    exportedAt:new Date().toISOString(),
+    period:{firstRecordedDate:sessionDates[0]||null,lastRecordedDate:sessionDates.at(-1)||null},
+    summary:{trainingDays:sessionDates.length,totalRecordedSets:totalSets,completedSets,totalVolumeKg:Number(totalVolume.toFixed(2))},
+    exerciseSummary,
+    data:{sessions:db.sessions||{},water:db.water||{},food:db.food||{},recovery:db.recovery||{}}
+  };
+  const stamp=new Date().toISOString().slice(0,10);
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`jean-performance-evolucao-${stamp}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  alert('Arquivo de evolução gerado. Guarde este arquivo e, daqui a 8 semanas, envie-o aqui para eu analisar sua evolução.');
+}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});render();
+</script></body></html>
